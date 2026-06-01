@@ -46,7 +46,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
 
     private int score;
     private int wave = 0;
-    private int setWaves = 1000;
+    private int setWaves = 25;
     private String gunType = "Pistol";
     private String ability = "LUCKY BULLETS";
     private String abDes = "MULTI-SHOT + DAMAGE BONUS";
@@ -337,7 +337,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             double dx = Math.cos(angle);
             double dy = Math.sin(angle);
             double roll = Math.random();
-            if (roll < 0.4) {
+            if (roll < 0.2) {
                 rockets.add(new Rocket(x, y, dx, dy));
             }
             else {
