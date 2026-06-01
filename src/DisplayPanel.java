@@ -11,12 +11,17 @@ import javax.imageio.ImageIO;
 public class DisplayPanel extends JPanel implements MouseListener, KeyListener, ActionListener {
 
     // ================= GAME DATA =================
-    private int spriteHP = 10;
+    private int spriteHP = 3;
     private int Zomhp;
     private long lastShotTime = 0;
-    private int SHOT_DELAY = 200;
-    private long ZomLastTime=0;
-    private int Zom_Delay=25;
+    private double SHOT_DELAY = 200;
+    private int BURST_DELAY = 50;
+    private int burstCount = 0;
+    private long lastBurstTime = 0;
+    private double burstDx, burstDy;
+    private double burstSx, burstSy;
+    private long ZomLastTime = 0;
+    private int Zom_Delay = 25;
     private int Dmg = 10;
     private int rocketRadius = 90;
     private Clip gunshotSound;
@@ -41,7 +46,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
 
     private int score;
     private int wave = 0;
-    private int setWaves=25;
+    private int setWaves = 25;
     private String gunType = "Pistol";
     private int spriteX;
     private int spriteY;
@@ -109,10 +114,36 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         checkForBulletCollisions();
 
         if (checkForspriteZomCollision() || wave >= setWaves) {
-            gameOver = true;
-            timer.stop();
+            spriteHP -= 1;
+            if (spriteHP < 1) {
+                gameOver = true;
+                timer.stop();
+            }
         }
+        if (gunType.equals("SHOTGUN") && burstCount > 0) {
 
+            long now = System.currentTimeMillis();
+
+            if (now - lastBurstTime >= 50) {
+
+                lastBurstTime = now;
+
+                for (int i = 0; i < 9; i++) {
+
+                    double sx2 = burstDx + (Math.random() - 0.5) * 0.7;
+                    double sy2 = burstDy + (Math.random() - 0.5) * 0.7;
+
+                    double len = Math.sqrt(sx2 * sx2 + sy2 * sy2);
+
+                    sx2 /= len;
+                    sy2 /= len;
+
+                    bullets.add(new Bullet(burstSx, burstSy, sx2, sy2, false));
+                }
+
+                burstCount--;
+            }
+        }
         repaint();
     }
 
@@ -123,7 +154,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         g.drawImage(background, 0, 0, getWidth(), getHeight(), null);
         if (gameOver) {
             g.setFont(new Font("Arial", Font.BOLD, 100));
-            g.drawString(wave >= setWaves ? "YOU WIN!" : "YOU LOSE", getWidth()/3, getHeight()/2);
+            g.drawString(wave >= setWaves ? "YOU WIN!" : "YOU LOSE", getWidth() / 3, getHeight() / 2);
         } else {
             g.drawImage(sprite, spriteX, spriteY, spriteWidth, spriteHeight, null);
         }
@@ -162,19 +193,45 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         g.drawString("Wave: " + wave, 50, 60);
         g.drawString("Gun: " + gunType, 50, 90);
         g.drawString("Damage: " + Dmg, 50, 120);
+        g.drawString("HEALTH: " + spriteHP, 50, 150);
     }
 
     // ================= INPUT =================
     @Override
-    public void mousePressed(MouseEvent e) { mouseHeld = true; }
+    public void mousePressed(MouseEvent e) {
+        mouseHeld = true;
+    }
+
     @Override
-    public void mouseReleased(MouseEvent e) { mouseHeld = false; }
-    @Override public void mouseClicked(MouseEvent e) {}
-    @Override public void mouseEntered(MouseEvent e) {}
-    @Override public void mouseExited(MouseEvent e) {}
-    @Override public void keyPressed(KeyEvent e) { pressedKeys[e.getKeyCode()] = true; }
-    @Override public void keyReleased(KeyEvent e) { pressedKeys[e.getKeyCode()] = false; }
-    @Override public void keyTyped(KeyEvent e) {}
+    public void mouseReleased(MouseEvent e) {
+        mouseHeld = false;
+    }
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+    }
+
+    @Override
+    public void mouseEntered(MouseEvent e) {
+    }
+
+    @Override
+    public void mouseExited(MouseEvent e) {
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        pressedKeys[e.getKeyCode()] = true;
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        pressedKeys[e.getKeyCode()] = false;
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+    }
 
     // ================= MOVEMENT =================
     private void movesprite() {
@@ -207,11 +264,18 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             b.y += b.dy * bulletSpeed;
 
             if (b.rocketBullet) {
-                double traveled = Math.sqrt((b.x - b.startX)*(b.x - b.startX) + (b.y - b.startY)*(b.y - b.startY));
-                if (traveled >= 200) { bullets.remove(i); i--; continue; }
+                double traveled = Math.sqrt((b.x - b.startX) * (b.x - b.startX) + (b.y - b.startY) * (b.y - b.startY));
+                if (traveled >= 200) {
+                    bullets.remove(i);
+                    i--;
+                    continue;
+                }
             }
 
-            if (out(b.x, b.y)) { bullets.remove(i); i--; }
+            if (out(b.x, b.y)) {
+                bullets.remove(i);
+                i--;
+            }
         }
     }
 
@@ -251,6 +315,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             }
         }
     }
+
     // ================= EXPLOSION SYSTEM =================
     private void explodeRocket(Rocket r) {
         for (Zombie z : new ArrayList<>(zombies)) {
@@ -296,8 +361,10 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         Rectangle spriteRect = new Rectangle(spriteX, spriteY, spriteWidth, spriteHeight);
         for (Zombie z : zombies) {
             Rectangle zomRect = new Rectangle((int) z.x, (int) z.y, ZomWith, ZomHeight);
-            if (spriteRect.intersects(zomRect))
+            if (spriteRect.intersects(zomRect)) {
+                zombies.remove(z);
                 return true;
+            }
         }
         return false;
     }
@@ -327,7 +394,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
     }
 
     private double distance(double x1, double y1, double x2, double y2) {
-        return Math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2));
+        return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
     }
 
     private void playGunshot() {
@@ -364,16 +431,28 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         if (now - ZomLastTime < Zom_Delay)
             return;
 
-        ZomLastTime= now;
+        ZomLastTime = now;
         int count = 3 + wave * 2;
         for (int i = 0; i < count; i++) {
-            int side = (int)(Math.random() * 4);
+            int side = (int) (Math.random() * 4);
             double x, y;
             switch (side) {
-                case 0 -> { x = -ZomWith; y = Math.random() * getHeight(); } // LEFT
-                case 1 -> { x = getWidth(); y = Math.random() * getHeight(); } // RIGHT
-                case 2 -> { x = Math.random() * getWidth(); y = -ZomHeight; } // TOP
-                default -> { x = Math.random() * getWidth(); y = getHeight(); } // BOTTOM
+                case 0 -> {
+                    x = -ZomWith;
+                    y = Math.random() * getHeight();
+                } // LEFT
+                case 1 -> {
+                    x = getWidth();
+                    y = Math.random() * getHeight();
+                } // RIGHT
+                case 2 -> {
+                    x = Math.random() * getWidth();
+                    y = -ZomHeight;
+                } // TOP
+                default -> {
+                    x = Math.random() * getWidth();
+                    y = getHeight();
+                } // BOTTOM
             }
             zombies.add(new Zombie(x, y));
         }
@@ -396,11 +475,17 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             double roll = Math.random();
 
             // Fast zombie (20%)
-            if (roll < 0.20) {
+            if (roll < 0.01) {
+                speed = 6;
+                hp = 30;
+            }
+            else if (roll < 0.05) {
+                speed = 1;
+                hp = 250;
+            } else if (roll < 0.20) {
                 speed = 3.0;
                 hp = 5;
             }
-
             // Tank zombie (30%)
             else if (roll < 0.50) {
                 speed = 0.8;
@@ -419,6 +504,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         double x, y, dx, dy;
         double startX, startY;
         boolean rocketBullet;
+
         Bullet(double x, double y, double dx, double dy, boolean rocketBullet) {
             this.x = x;
             this.y = y;
@@ -432,6 +518,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
 
     private class Rocket {
         double x, y, dx, dy;
+
         Rocket(double x, double y, double dx, double dy) {
             this.x = x;
             this.y = y;
@@ -439,37 +526,61 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             this.dy = dy;
         }
     }
+
     // ================= GUN TYPES =================
     private void GunType() {
 
         if (pressedKeys[KeyEvent.VK_1]) {
             gunType = "PISTOL";
             SHOT_DELAY = 200;
-            Dmg = 5;
+            Dmg = 10;
+            burstCount = 5;
+            BURST_DELAY = 0;
         }
 
         if (pressedKeys[KeyEvent.VK_2]) {
             gunType = "SHOTGUN";
             SHOT_DELAY = 500;
             Dmg = 5;
+            burstCount = 3;
+            BURST_DELAY = 250;
         }
 
         if (pressedKeys[KeyEvent.VK_3]) {
             gunType = "AK47";
-            SHOT_DELAY = 100;
-            Dmg = 10;
+            double roll = Math.random();
+            if (roll < 0.005) {
+                SHOT_DELAY = 60;
+                Dmg = 250;
+            } else if (roll < 0.20) {
+                SHOT_DELAY = 70;
+                Dmg = 25;
+            } else if (roll < 0.40) {
+                SHOT_DELAY = 80;
+                Dmg = 20;
+            } else {
+                SHOT_DELAY = 100;
+                Dmg = 15;
+            }
+            burstCount = 1;
+            BURST_DELAY = 0;
         }
+
 
         if (pressedKeys[KeyEvent.VK_4]) {
             gunType = "MINIGUN";
-            SHOT_DELAY = 25;
-            Dmg = 3;
+            SHOT_DELAY = 0.1;
+            Dmg = 1;
+            burstCount =2;
+            BURST_DELAY=0;
         }
 
         if (pressedKeys[KeyEvent.VK_5]) {
             gunType = "ROCKET LAUNCHER";
             SHOT_DELAY = 100;
             Dmg = 5;
+            burstCount =1;
+            BURST_DELAY=0;
         }
     }
 
@@ -478,11 +589,11 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             case "PISTOL":
                 return 0.02;
             case "SHOTGUN":
-                return 0.3;
+                return 0.6;
             case "AK47":
                 return 0.08;
             case "MINIGUN":
-                return 0.25;
+                return 0.5;
             case "ROCKET LAUNCHER":
                 return 0;
             default:
@@ -491,7 +602,6 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
     }
 
     private void shoot() {
-
         long now = System.currentTimeMillis();
 
         if (now - lastShotTime < SHOT_DELAY)
@@ -499,42 +609,75 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
 
         lastShotTime = now;
 
-        Point click = getMousePosition();
 
-        if (click == null)
-            return;
+            Point click = getMousePosition();
 
-        double sx = spriteX + spriteWidth / 2.0;
-        double sy = spriteY + spriteHeight / 2.0;
+            if (click == null)
+                return;
 
-        double dx = click.x - sx;
-        double dy = click.y - sy;
+            double sx = spriteX + spriteWidth / 2.0;
+            double sy = spriteY + spriteHeight / 2.0;
 
-        double len = Math.sqrt(dx * dx + dy * dy);
+            double dx = click.x - sx;
+            double dy = click.y - sy;
 
-        if (len == 0)
-            return;
+            double len = Math.sqrt(dx * dx + dy * dy);
 
-        dx /= len;
-        dy /= len;
+            if (len == 0)
+                return;
 
-        double spread = getSpread();
+            dx /= len;
+            dy /= len;
 
-        dx += (Math.random() - 0.5) * spread;
-        dy += (Math.random() - 0.5) * spread;
+            double spread = getSpread();
 
-        len = Math.sqrt(dx * dx + dy * dy);
+            dx += (Math.random() - 0.5) * spread;
+            dy += (Math.random() - 0.5) * spread;
 
-        dx /= len;
-        dy /= len;
+            len = Math.sqrt(dx * dx + dy * dy);
 
-        // SHOTGUN
+            dx /= len;
+            dy /= len;
+
+            // SHOTGUN
         if (gunType.equals("SHOTGUN")) {
-            playGunshot();
-            for (int i = 0; i < 8; i++) {
 
-                double sx2 = dx + (Math.random() - 0.5) * 0.7;
-                double sy2 = dy + (Math.random() - 0.5) * 0.7;
+            if (burstCount == 0) {
+
+                playGunshot();
+
+                Point click2 = getMousePosition();
+                if (click2 == null) return;
+
+                double sx2 = spriteX + spriteWidth / 2.0;
+                double sy2 = spriteY + spriteHeight / 2.0;
+
+                double dx2 = click.x - sx2;
+                double dy2 = click.y - sy2;
+
+                double len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+                if (len == 0) return;
+
+                dx2 /= len2;
+                dy2 /= len2;
+
+                burstDx = dx2;
+                burstDy = dy2;
+                burstSx = sx2;
+                burstSy = sy2;
+
+                burstCount = 3; // number of bursts
+                lastBurstTime = System.currentTimeMillis();
+            }
+
+            return;
+        }
+
+            // MINIGUN
+            else if (gunType.equals("MINIGUN")) {
+
+                double sx2 = dx + (Math.random() - 0.5) * 0.35;
+                double sy2 = dy + (Math.random() - 0.5) * 0.35;
 
                 double len2 = Math.sqrt(sx2 * sx2 + sy2 * sy2);
 
@@ -543,63 +686,61 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
 
                 bullets.add(new Bullet(sx, sy, sx2, sy2, false));
             }
-        }
 
-        // MINIGUN
-        else if (gunType.equals("MINIGUN")) {
+            // AK47
+            else if (gunType.equals("AK47")) {
 
-            double sx2 = dx + (Math.random() - 0.5) * 0.35;
-            double sy2 = dy + (Math.random() - 0.5) * 0.35;
+                double sx2 = dx + (Math.random() - 0.5) * 0.25;
+                double sy2 = dy + (Math.random() - 0.5) * 0.25;
 
-            double len2 = Math.sqrt(sx2 * sx2 + sy2 * sy2);
+                double len2 = Math.sqrt(sx2 * sx2 + sy2 * sy2);
 
-            sx2 /= len2;
-            sy2 /= len2;
+                sx2 /= len2;
+                sy2 /= len2;
 
-            bullets.add(new Bullet(sx, sy, sx2, sy2, false));
-        }
+                bullets.add(new Bullet(sx, sy, sx2, sy2, false));
+            }
 
-        // AK47
-        else if (gunType.equals("AK47")) {
+            // PISTOL
+            else if (gunType.equals("PISTOL")) {
+            double roll = Math.random();
+            if (roll < 0.1) {
+                SHOT_DELAY = 5;
+                Dmg = 250;
+            } else if (roll < 0.20) {
+                SHOT_DELAY = 10;
+                Dmg = 25;
+            } else if (roll < 0.50) {
+                SHOT_DELAY = 15;
+                Dmg = 20;
+            } else {
+                SHOT_DELAY = 200;
+                Dmg = 10;
+            }
+                double sx2 = dx + (Math.random() - 0.5) * 0.1;
+                double sy2 = dy + (Math.random() - 0.5) * 0.1;
 
-            double sx2 = dx + (Math.random() - 0.5) * 0.25;
-            double sy2 = dy + (Math.random() - 0.5) * 0.25;
+                double len2 = Math.sqrt(sx2 * sx2 + sy2 * sy2);
 
-            double len2 = Math.sqrt(sx2 * sx2 + sy2 * sy2);
+                sx2 /= len2;
+                sy2 /= len2;
 
-            sx2 /= len2;
-            sy2 /= len2;
+                bullets.add(new Bullet(sx, sy, sx2, sy2, false));
+            }
 
-            bullets.add(new Bullet(sx, sy, sx2, sy2, false));
-        }
+            // ROCKET LAUNCHER
+            else if (gunType.equals("ROCKET LAUNCHER")) {
 
-        // PISTOL
-        else if (gunType.equals("PISTOL")) {
+                rockets.add(new Rocket(sx, sy, dx, dy));
+                playGunshot();
+            }
 
-            double sx2 = dx + (Math.random() - 0.5) * 0.1;
-            double sy2 = dy + (Math.random() - 0.5) * 0.1;
+            // DEFAULT
+            else {
 
-            double len2 = Math.sqrt(sx2 * sx2 + sy2 * sy2);
+                bullets.add(new Bullet(sx, sy, dx, dy, false));
+            }
 
-            sx2 /= len2;
-            sy2 /= len2;
-
-            bullets.add(new Bullet(sx, sy, sx2, sy2, false));
-        }
-
-        // ROCKET LAUNCHER
-        else if (gunType.equals("ROCKET LAUNCHER")) {
-
-            rockets.add(new Rocket(sx, sy, dx, dy));
             playGunshot();
         }
-
-        // DEFAULT
-        else {
-
-            bullets.add(new Bullet(sx, sy, dx, dy, false));
-        }
-
-        playGunshot();
     }
-}
