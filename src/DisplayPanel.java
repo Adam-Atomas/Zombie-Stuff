@@ -46,8 +46,10 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
 
     private int score;
     private int wave = 0;
-    private int setWaves = 25;
+    private int setWaves = 1000;
     private String gunType = "Pistol";
+    private String ability = "LUCKY BULLETS";
+    private String abDes = "MULTI-SHOT + DAMAGE BONUS";
     private int spriteX;
     private int spriteY;
 
@@ -193,7 +195,9 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         g.drawString("Wave: " + wave, 50, 60);
         g.drawString("Gun: " + gunType, 50, 90);
         g.drawString("Damage: " + Dmg, 50, 120);
-        g.drawString("HEALTH: " + spriteHP, 50, 150);
+        g.drawString("HEALTH: " + spriteHP, 50, 160);
+        g.drawString("ABILITY: " + ability, getWidth()/3, 60);
+        g.drawString( abDes, getWidth()/3, 100);
     }
 
     // ================= INPUT =================
@@ -266,15 +270,15 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             if (b.rocketBullet) {
                 double traveled = Math.sqrt((b.x - b.startX) * (b.x - b.startX) + (b.y - b.startY) * (b.y - b.startY));
                 if (traveled >= 200) {
-                    bullets.remove(i);
-                    i--;
-                    continue;
+                        bullets.remove(i);
+                        i--;
+                        continue;
                 }
             }
 
             if (out(b.x, b.y)) {
-                bullets.remove(i);
-                i--;
+                    bullets.remove(i);
+                    i--;
             }
         }
     }
@@ -332,7 +336,13 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             double angle = (2 * Math.PI / count) * i;
             double dx = Math.cos(angle);
             double dy = Math.sin(angle);
-            bullets.add(new Bullet(x, y, dx, dy, true));
+            double roll = Math.random();
+            if (roll < 0.4) {
+                rockets.add(new Rocket(x, y, dx, dy));
+            }
+            else {
+                bullets.add(new Bullet(x, y, dx, dy, true));
+            }
         }
     }
 
@@ -531,6 +541,8 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
     private void GunType() {
 
         if (pressedKeys[KeyEvent.VK_1]) {
+            ability = "LUCKY BULLET";
+            abDes = "MULTI-SHOT + DAMAGE BONUS";
             gunType = "PISTOL";
             SHOT_DELAY = 200;
             Dmg = 10;
@@ -539,6 +551,8 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         }
 
         if (pressedKeys[KeyEvent.VK_2]) {
+            ability = "BURST BUSTER";
+            abDes = "BURST 3 ROUNDS 9 BULLETS";
             gunType = "SHOTGUN";
             SHOT_DELAY = 500;
             Dmg = 5;
@@ -547,9 +561,11 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         }
 
         if (pressedKeys[KeyEvent.VK_3]) {
+            ability = "THE GAMBLER";
+            abDes = "DAMAGE + SPEED RANDOMIZED (when selected)";
             gunType = "AK47";
             double roll = Math.random();
-            if (roll < 0.005) {
+            if (roll < 0.01) {
                 SHOT_DELAY = 60;
                 Dmg = 250;
             } else if (roll < 0.20) {
@@ -558,9 +574,15 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
             } else if (roll < 0.40) {
                 SHOT_DELAY = 80;
                 Dmg = 20;
-            } else {
+
+            }
+            else if (roll < 0.90) {
                 SHOT_DELAY = 100;
                 Dmg = 15;
+            }
+            else {
+                SHOT_DELAY = 1000;
+                Dmg = 5;
             }
             burstCount = 1;
             BURST_DELAY = 0;
@@ -568,6 +590,8 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
 
 
         if (pressedKeys[KeyEvent.VK_4]) {
+            ability = "SILENCE";
+            abDes = "SAVE YOUR EARS";
             gunType = "MINIGUN";
             SHOT_DELAY = 0.1;
             Dmg = 1;
@@ -576,8 +600,10 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
         }
 
         if (pressedKeys[KeyEvent.VK_5]) {
+            ability = "SAVAGE";
+            abDes = "SHRAPNEL CAN BECOME ROCKETS";
             gunType = "ROCKET LAUNCHER";
-            SHOT_DELAY = 100;
+            SHOT_DELAY = 500;
             Dmg = 5;
             burstCount =1;
             BURST_DELAY=0;
@@ -709,10 +735,10 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
                 Dmg = 250;
             } else if (roll < 0.20) {
                 SHOT_DELAY = 10;
-                Dmg = 25;
+                Dmg = 100;
             } else if (roll < 0.50) {
                 SHOT_DELAY = 15;
-                Dmg = 20;
+                Dmg = 50;
             } else {
                 SHOT_DELAY = 200;
                 Dmg = 10;
@@ -730,7 +756,7 @@ public class DisplayPanel extends JPanel implements MouseListener, KeyListener, 
 
             // ROCKET LAUNCHER
             else if (gunType.equals("ROCKET LAUNCHER")) {
-
+            double roll = Math.random();
                 rockets.add(new Rocket(sx, sy, dx, dy));
                 playGunshot();
             }
